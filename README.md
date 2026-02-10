@@ -19,13 +19,15 @@ pip install -e .
 
 ## Running
 
-1) Save the event log in the `event_log` folder.
+1) Save your input event log in the `event_log` folder.
 
 2) Run the generator:
 
 ```bash
 python log_to_synth.py
 ```
+
+3) You will get in output a synthetic `*_synth.csv` event log an evaluation of it in `*_synth_eval.json`.
 
 ## Info
 The event log is not public due to privacy constraints; contact the corresponding author for access (roberto.nai@unito.it)
