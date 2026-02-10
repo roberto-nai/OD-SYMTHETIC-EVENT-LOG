@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs and caches
+*.log
+.cache/
+
+# Old versions
+_old/
+
+# Event logs (keep folder via .gitkeep)
+event_log/*
+!event_log/.gitkeep
+
+# OS files
+.DS_Store
