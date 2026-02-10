@@ -15,6 +15,8 @@ Install dependencies from setup.py:
 pip install -e .
 ```
 
+Set the CSV column names in `log_to_synth.py` (`CASEID_COL`, `ACTIVITY_COL`, `TIMESTAMP_COL`) to match your input file.
+
 ## Running
 
 Save the event log in the "event_log" folder.

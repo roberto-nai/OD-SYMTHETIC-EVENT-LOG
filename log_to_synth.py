@@ -48,6 +48,11 @@ from torch.utils.data import Dataset, DataLoader
 EVENT_LOG_DIR = Path("event_log")
 INPUT_FILENAME = "orbassano.csv"
 
+# CSV column names (INPUT should have at least these; output will have the same columns)
+CASEID_COL = "case"
+ACTIVITY_COL = "activity"
+TIMESTAMP_COL = "timestamp"
+
 SEED = 42
 DEVICE = "auto"          # "auto", "cpu", "cuda"
 
@@ -138,25 +143,25 @@ def topk_variants(traces: List[List[str]], k: int = 20) -> List[Tuple[Tuple[str,
 def read_event_log(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
 
-    required = {"case", "activity", "timestamp"}
+    required = {CASEID_COL, ACTIVITY_COL, TIMESTAMP_COL}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns {sorted(missing)}. Found: {list(df.columns)}")
 
-    df["case"] = df["case"].astype(str)
-    df["activity"] = df["activity"].astype(str)
+    df[CASEID_COL] = df[CASEID_COL].astype(str)
+    df[ACTIVITY_COL] = df[ACTIVITY_COL].astype(str)
 
     # Sort by timestamp to reconstruct traces
-    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
-    df = df.sort_values(["case", "timestamp"])
+    df[TIMESTAMP_COL] = pd.to_datetime(df[TIMESTAMP_COL], errors="coerce")
+    df = df.sort_values([CASEID_COL, TIMESTAMP_COL])
 
     return df
 
 
 def build_traces(df: pd.DataFrame) -> List[List[str]]:
     traces = []
-    for _, g in df.groupby("case", sort=False):
-        traces.append(g["activity"].tolist())
+    for _, g in df.groupby(CASEID_COL, sort=False):
+        traces.append(g[ACTIVITY_COL].tolist())
     return traces
 
 
@@ -173,24 +178,24 @@ def build_timestamp_models(
     - distribution of start time-of-day (seconds from midnight) for first events
     """
     work = df.copy()
-    work["timestamp"] = pd.to_datetime(work["timestamp"], errors="coerce")
-    work = work.dropna(subset=["timestamp"]).sort_values(["case", "timestamp"])
+    work[TIMESTAMP_COL] = pd.to_datetime(work[TIMESTAMP_COL], errors="coerce")
+    work = work.dropna(subset=[TIMESTAMP_COL]).sort_values([CASEID_COL, TIMESTAMP_COL])
 
     trans_deltas: Dict[tuple[str, str], list[float]] = {}
     all_deltas: list[float] = []
     start_tod: list[float] = []
 
-    for _, g in work.groupby("case", sort=False):
+    for _, g in work.groupby(CASEID_COL, sort=False):
         g = g.reset_index(drop=True)
 
-        ts0 = g.loc[0, "timestamp"]
+        ts0 = g.loc[0, TIMESTAMP_COL]
         start_tod.append(ts0.hour * 3600 + ts0.minute * 60 + ts0.second)
 
         for i in range(len(g) - 1):
-            a = str(g.loc[i, "activity"])
-            b = str(g.loc[i + 1, "activity"])
-            t1 = g.loc[i, "timestamp"]
-            t2 = g.loc[i + 1, "timestamp"]
+            a = str(g.loc[i, ACTIVITY_COL])
+            b = str(g.loc[i + 1, ACTIVITY_COL])
+            t1 = g.loc[i, TIMESTAMP_COL]
+            t2 = g.loc[i + 1, TIMESTAMP_COL]
 
             delta = (t2 - t1).total_seconds()
             if 0 <= delta <= MAX_DELTA_SEC:
@@ -515,7 +520,7 @@ def save_synth_log_like_input(
         date_choices = pd.to_datetime(input_df["DATE"], errors="coerce").dropna().unique()
         anchor_date = pd.Timestamp(np.random.choice(date_choices))
     else:
-        anchor_date = pd.to_datetime(input_df["timestamp"], errors="coerce").dropna().iloc[0].normalize()
+        anchor_date = pd.to_datetime(input_df[TIMESTAMP_COL], errors="coerce").dropna().iloc[0].normalize()
 
     rows = []
     for i, tr in enumerate(synth_traces, start=1):
@@ -530,9 +535,9 @@ def save_synth_log_like_input(
 
         for act, ts in zip(tr, ts_list):
             row = {c: np.nan for c in input_columns}
-            row["case"] = case_id
-            row["activity"] = act
-            row["timestamp"] = ts.strftime("%Y-%m-%d %H:%M:%S")
+            row[CASEID_COL] = case_id
+            row[ACTIVITY_COL] = act
+            row[TIMESTAMP_COL] = ts.strftime("%Y-%m-%d %H:%M:%S")
 
             if "DATE" in row:
                 row["DATE"] = ts.strftime("%Y-%m-%d")
@@ -544,10 +549,10 @@ def save_synth_log_like_input(
     out_df = pd.DataFrame(rows, columns=input_columns)
 
     # Keep the log ordered by (case, timestamp) like the real one
-    if "timestamp" in out_df.columns:
-        out_df["timestamp"] = pd.to_datetime(out_df["timestamp"], errors="coerce")
-        out_df = out_df.sort_values(["case", "timestamp"])
-        out_df["timestamp"] = out_df["timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    if TIMESTAMP_COL in out_df.columns:
+        out_df[TIMESTAMP_COL] = pd.to_datetime(out_df[TIMESTAMP_COL], errors="coerce")
+        out_df = out_df.sort_values([CASEID_COL, TIMESTAMP_COL])
+        out_df[TIMESTAMP_COL] = out_df[TIMESTAMP_COL].dt.strftime("%Y-%m-%d %H:%M:%S")
 
     out_df.to_csv(out_csv, index=False)
 
